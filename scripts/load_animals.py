@@ -219,6 +219,77 @@ def load_dogfish_with_koda():
 
     return base.Datasets(train=train, validation=validation, test=test)
 
+def load_dogfish_with_rand(rand):
+    classes = ['dog', 'fish']
+    
+    data_sets = load_animals(num_train_ex_per_class=900,
+                 num_test_ex_per_class=300,
+                 num_valid_ex_per_class=0,
+                 classes=classes)
+    train = data_sets.train
+    validation = data_sets.test
+    subpop_x, subpop_y = get_subpop(data_sets.train.x, data_sets.train.y, data_sets.test.x, data_sets.test.y, subpop_id=subpop)
+    test = DataSet(subpop_x, subpop_y)
+    return base.Datasets(train=train, validation=validation, test=test)
+
+def load_dogfish_with_subpop(subpop):
+    classes = ['dog', 'fish']
+    
+    data_sets = load_animals(num_train_ex_per_class=900,
+                 num_test_ex_per_class=300,
+                 num_valid_ex_per_class=0,
+                 classes=classes)
+    train = data_sets.train
+    validation = data_sets.test
+    print(dir(train), dir(validation))
+    subpop_x, subpop_y = get_subpop(data_sets.train.x, data_sets.train.labels, data_sets.test.x, data_sets.test.labels, subpop_id=subpop)
+    test = DataSet(subpop_x, subpop_y)
+    return base.Datasets(train=train, validation=validation, test=test)
+
+    
+def get_rand(x_trn, y_trn, x_tst, y_tst, rand=0):
+    np.random.seed(rand)
+    ss_xtrn = x_trn[y_trn==0]
+    ss_xtst = x_tst[y_tst==0]
+    tst_inds = np.random.choice(ss_xtst.shape[0], 20, replace=False)
+    return ss_xtst[tst_inds], y_tst[y_tst==0][tst_inds]
+
+
+def get_subpop(x_trn, y_trn, x_tst, y_tst, subpop_ct=10, subpop_id=0):
+    np.random.seed(0)
+    from sklearn.decomposition import PCA
+    from sklearn.cluster import KMeans
+    print(x_tst.shape, y_tst.shape)
+    ss_x = x_trn[y_trn==0]
+    ss_tstx = x_tst[y_tst==0]
+    pca = PCA(10)
+    pca_tx = pca.fit_transform(ss_x)
+    pca_x = pca.transform(ss_tstx)
+    
+    km = KMeans(subpop_ct)
+    km.fit(pca_tx)
+    km_tst = km.predict(pca_x)
+    km_inds = np.where(km_tst==subpop_id)[0]
+    subpop_x = ss_tstx[km_inds][:30]
+    subpop_y = y_tst[y_tst==0][km_inds]
+    if subpop_x.shape[0] < 30:
+        new_km_inds = np.random.choice(subpop_x.shape[0], 30, replace=True)
+        return subpop_x[new_km_inds], subpop_y[new_km_inds]
+    return ss_tstx[km_inds][:30], y_tst[y_tst==0][km_inds][:30]
+    
+
+def load_dogfish_with_pois(subpop=False, koda=False, rand=False):
+    if koda:
+        return load_dogfish_with_koda()
+    
+    if subpop:
+        return load_dogfish_with_subpop(subpop-1)
+
+    if rand:
+        return load_dogfish_with_rand(rand-1)
+
+    raise NotImplementedError
+
 
 def load_dogfish_with_orig_and_koda():
     classes = ['dog', 'fish']
